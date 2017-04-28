@@ -1,3 +1,6 @@
+%%%%%%%%%%%% rotation %%%%%%%%%%%%%%%%%%
+
+
 % image read
 
 [FileName,Path] = uigetfile('*.jpg','Choose fixed image file');
@@ -35,24 +38,7 @@ end
 
 rtImage = imrotate(FI,angleRot);
 
-% orientations = P(:,2);
+%%%%%%%%%%%%%%% End of Preprocessing %%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%% MSER %%%%%%%%%%%%%%%%%%%%%%%
 
-% if length(unique(orientations)) > 3    
-%     temp_orientation = orientations(1);
-%     rotate_angle = 0;
-% else
-%     temp_orientation = mode(P(:,2));
-%     rotate_angle = transpose(temp_orientation)-90;
-% end
-
-% rotate_angle = transpose(temp_orientation)-90;
-
-% while(abs(rotate_angle) > 45)
-%     rotate_angle = rotate_angle - sign(rotate_angle)*90;
-% end
-
-% angle = rotate_angle;
-
-% rotate_img = imrotate(FI,rotate_angle,'bilinear');
-% %figure;
-% imshow(rotate_img);
+mser = detectMSERFeatures(grayImg);
