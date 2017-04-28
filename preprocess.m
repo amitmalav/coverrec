@@ -43,5 +43,8 @@ rtImage = imrotate(FI,angleRot);
 
 grayImg = rgb2gray(rtImage);
     [mser] = detectMSERFeatures(grayImg,'RegionAreaRange',[200 8000],'ThresholdDelta',0.1);
+sz = size(grayImg);
 
 % mserStats = regionprops(mser, 'BoundingBox', 'Eccentricity', ... 'Solidity', 'Extent', 'Euler', 'Image');
+
+plist = cellfun(@(xy)sub2ind(sz, xy(:,2), xy(:,1)),mser.PixelList, 'UniformOutput', false);
