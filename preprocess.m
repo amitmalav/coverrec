@@ -118,8 +118,35 @@ ylow = max(ylow, 1);
 xhi = min(xhi, size(rtImage, 2));
 yhi = min(yhi, size(rtImage, 1));
 
-bBoxMat = [xlow, ylow, xhi, yhi];
+bBoxMat = [xlow, ylow, xhi - xlow + 1, yhi - ylow + 1];
 
 %draw bbox
 
 bboxdraw = insertShape(rtImage,'Rectangle',bBoxMat,'LineWidth',3);
+
+%remove bboxes which are not aligned
+
+oratio = bboxOverlapRatio(bBoxMat, bBoxMat);
+
+% Set the overlap ratio between a bounding box and itself to zero to
+
+n = size(oratio, 1);
+for i = 1:n
+	oratio(i, i) = 0;
+end
+
+g = graph(oratio);
+componentIndices = conncomp(g);
+xlow = accumarray(componentIndices', xlow, [], @min);
+ylow = accumarray(componentIndices', ylow, [], @min);
+xhi = accumarray(componentIndices', xhi, [], @max);
+yhi = accumarray(componentIndices', yhi, [], @max);
+
+bBigBox =  [xlow, ylow, xhi - xlow + 1, yhi - ylow + 1];
+numRegionsInGroup = histcounts(componentIndices);
+bBigBox(numRegionsInGroup == 1, :) = [];
+ITextRegion = insertShape(rtImage, 'Rectangle', bBigBox,'LineWidth',3);
+
+
+ocrtxt = ocr(rtImage, bBigBox);
+rectext = ocrtxt.Text;
