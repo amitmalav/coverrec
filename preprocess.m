@@ -41,4 +41,7 @@ rtImage = imrotate(FI,angleRot);
 %%%%%%%%%%%%%%% End of Preprocessing %%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%% MSER %%%%%%%%%%%%%%%%%%%%%%%
 
-mser = detectMSERFeatures(grayImg);
+grayImg = rgb2gray(rtImage);
+[mser,mser1] = detectMSERFeatures(grayImg);
+
+mserData = regionprops(mser1,'BoundingBox','Eccentricity','Extent','Euler','Image');
