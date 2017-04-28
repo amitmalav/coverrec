@@ -12,7 +12,7 @@ FI = imread(fullfile(Path,FileName));
 grayImg = rgb2gray(FI);
 
 %edge
-edges = edge(grayImg,'Canny');
+edges = edge(grayImg,'sobel');
 
 % hough transform
 h = hough(edges);
@@ -42,7 +42,7 @@ rtImage = imrotate(FI,angleRot);
 %%%%%%%%%%%%%%%%%% MSER %%%%%%%%%%%%%%%%%%%%%%%
 
 grayImg = rgb2gray(rtImage);
-[mser] = detectMSERFeatures(grayImg,'RegionAreaRange',[200 8000],'ThresholdDelta',4);
+[mser] = detectMSERFeatures(grayImg,'RegionAreaRange',[200 8000],'ThresholdDelta',10);
 sz = size(grayImg);
 
 % mserStats = regionprops(mser, 'BoundingBox', 'Eccentricity', ... 'Solidity', 'Extent', 'Euler', 'Image');
