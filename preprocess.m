@@ -1,8 +1,6 @@
 %%%%%%%%%%%% rotation %%%%%%%%%%%%%%%%%%
 
-
 % image read
-
 [FileName,Path] = uigetfile('*.jpg','Choose fixed image file');
 FI = imread(fullfile(Path,FileName));
 
@@ -45,91 +43,81 @@ grayImg = rgb2gray(rtImage);
 [mser] = detectMSERFeatures(grayImg,'RegionAreaRange',[200 8000],'ThresholdDelta',10);
 sz = size(grayImg);
 
-% mserStats = regionprops(mser, 'BoundingBox', 'Eccentricity', ... 'Solidity', 'Extent', 'Euler', 'Image');
-% [mser] = detectMSERFeatures(grayImg);
-plist = cellfun(@(xy)sub2ind(size(grayImg), xy(:,2), xy(:,1)),mser.PixelList, 'UniformOutput', false);
+% need processing for MSER regions 
+plist = cellfun(@(doubMat)sub2ind(size(grayImg), doubMat(:,2), doubMat(:,1)),mser.PixelList, 'UniformOutput', false);
 mser1.Connectivity = 8;
 mser1.ImageSize = size(grayImg);
 mser1.NumObjects = mser.Count;
 mser1.PixelIdxList = plist;
 
-mserstat = regionprops(mser1,'BoundingBox','Eccentricity','Solidity','Extent','Euler','Image');
+mserReg = regionprops(mser1,'BoundingBox','Eccentricity','Solidity','Extent','Euler','Image');
 
 % Compute aspect ratio w/h
-
-bBox = vertcat(mserstat.BoundingBox);
-w = bBox(:,3); 
-h = bBox(:,4);
+containerBox = vertcat(mserReg.BoundingBox);
+w = containerBox(:,3); 
+h = containerBox(:,4);
 aspectRatio = w./h;
+
 %detect usless mser regions 
+filteredRegions = aspectRatio' > 3.5 | [mserReg.Eccentricity] > 0.995 | [mserReg.Solidity] < 0.3 | [mserReg.Extent] < 0.2 | [mserReg.Extent] > 0.9 | [mserReg.EulerNumber] < -4;
 
-filteredRegions = aspectRatio' > 3 | [mserstat.Eccentricity] > .995 | [mserstat.Solidity] < .3 | [mserstat.Extent] < .2 | [mserstat.Extent] > .9 | [mserstat.EulerNumber] < -4;
-
-%remove useless regions
-
-mserstat(filteredRegions) = [];
+%remove the detected useless regions
+mserReg(filteredRegions) = [];
 mser(filteredRegions) = [];
 
 % filter regions based on stroke width
 %Text regions tend to have little stroke width variation, whereas non-text regions tend to have larger variations.
 
-[m, n] = size(mserstat);
+[m, n] = size(mserReg);
 
-for i = 1:numel(mserstat)
+for i = 1:m
+
 	%padding the region image for filtering
-	msImage = padarray(mserstat(i).Image, [1,1], 0);
+	msImage = padarray(mserReg(i).Image, [1,1]);
+
 	%computing distance of nearest non zero pixel for each pixel
 	distanceMatrix = bwdist(~msImage);
+
 	%applies thin morph op
 	morphmat  = bwmorph(msImage, 'thin', inf);
 	sValue = distanceMatrix(morphmat);
 	sMat = std(sValue)/mean(sValue);
-	sfilteredRegions(i) = sMat > 0.6;
+	sfilteredRegions(i) = sMat > 0.55;
 end
 
-mserstat(sfilteredRegions) = [];
+mserReg(sfilteredRegions) = [];
 mser(sfilteredRegions) = [];
 
 %create boundry boxes for every word
-
-
-bBox = vertcat(mserstat.BoundingBox);
-w = bBox(:,3); 
-h = bBox(:,4);
+containerBox = vertcat(mserReg.BoundingBox);
+w = containerBox(:,3); 
+h = containerBox(:,4);
 
 %get end points of boundry boxes
-
-xlow = bBox(:, 1);
-ylow = bBox(:, 2);
-xhi = xlow + w - 1;
-yhi = ylow + h - 1;
+x_small = containerBox(:, 1);
+y_small = containerBox(:, 2);
+x_big = x_small + w - 1;
+y_big = y_small + h - 1;
 
 %expand bboxes by little amount
-
-xlow = (1 - 0.02) * xlow;
-ylow = (1 - 0.02) * ylow;
-xhi = (1 + 0.02) * xhi;
-yhi = (1 + 0.02) * yhi;
+x_small = (1 - 0.02) * x_small;
+y_small = (1 - 0.02) * y_small;
+x_big = (1 + 0.02) * x_big;
+y_big = (1 + 0.02) * y_big;
 
 %clip end points
+[size1,size2] = size(rtImage);
+x_small = max(x_small, 1);
+y_small = max(y_small, 1);
+x_big = min(x_big, size2);
+y_big = min(y_big, size1);
 
-xlow = max(xlow, 1);
-ylow = max(ylow, 1);
-xhi = min(xhi, size(rtImage, 2));
-yhi = min(yhi, size(rtImage, 1));
-
-bBoxMat = [xlow, ylow, xhi - xlow + 1, yhi - ylow + 1];
-
-%draw bbox
-
-bboxdraw = insertShape(rtImage,'Rectangle',bBoxMat,'LineWidth',3);
+bBoxMat = [x_small - 1, y_small - 1, x_big - x_small + 1, y_big - y_small + 1];
 
 %remove bboxes which are not aligned
-
 oratio = bboxOverlapRatio(bBoxMat, bBoxMat);
 
 % Set the overlap ratio between a bounding box and itself to zero to
-
 n = size(oratio, 1);
 for i = 1:n
 	oratio(i, i) = 0;
@@ -137,15 +125,15 @@ end
 
 g = graph(oratio);
 componentIndices = conncomp(g);
-xlow = accumarray(componentIndices', xlow, [], @min);
-ylow = accumarray(componentIndices', ylow, [], @min);
-xhi = accumarray(componentIndices', xhi, [], @max);
-yhi = accumarray(componentIndices', yhi, [], @max);
+x_small = accumarray(componentIndices', x_small, [], @min);
+y_small = accumarray(componentIndices', y_small, [], @min);
+x_big = accumarray(componentIndices', x_big, [], @max);
+y_big = accumarray(componentIndices', y_big, [], @max);
 
-bBigBox =  [xlow, ylow, xhi - xlow + 1, yhi - ylow + 1];
+bBigBox =  [x_small, y_small, x_big - x_small + 1, y_big - y_small + 1];
 numRegionsInGroup = histcounts(componentIndices);
 bBigBox(numRegionsInGroup == 1, :) = [];
-ITextRegion = insertShape(rtImage, 'Rectangle', bBigBox,'LineWidth',3);
+ITextRegion = insertShape(rtImage, 'Rectangle', bBigBox,'LineWidth',2);
 
 
 ocrtxt = ocr(rtImage, bBigBox);
