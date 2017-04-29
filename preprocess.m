@@ -1,3 +1,5 @@
+clear;
+
 %%%%%%%%%%%% rotation %%%%%%%%%%%%%%%%%%
 
 % image read
@@ -40,7 +42,7 @@ rtImage = imrotate(FI,angleRot);
 %%%%%%%%%%%%%%%%%% MSER %%%%%%%%%%%%%%%%%%%%%%%
 
 grayImg = rgb2gray(rtImage);
-[mser] = detectMSERFeatures(grayImg,'RegionAreaRange',[200 8000],'ThresholdDelta',10);
+[mser] = detectMSERFeatures(grayImg,'RegionAreaRange',[200 8000],'ThresholdDelta',4);
 sz = size(grayImg);
 
 % need processing for MSER regions 
@@ -133,8 +135,36 @@ y_big = accumarray(componentIndices', y_big, [], @max);
 bBigBox =  [x_small, y_small, x_big - x_small + 1, y_big - y_small + 1];
 numRegionsInGroup = histcounts(componentIndices);
 bBigBox(numRegionsInGroup == 1, :) = [];
-ITextRegion = insertShape(rtImage, 'Rectangle', bBigBox,'LineWidth',2);
+ITextRegion = insertShape(rtImage, 'Rectangle', bBigBox,'LineWidth',4);
 
+% get words using ocr
+ocrResult = ocr(rtImage, bBigBox);
 
-ocrtxt = ocr(rtImage, bBigBox);
-rectext = ocrtxt.Text;
+% check for valid text from ocrout
+ocrSelectResult = {};
+trueOut = {};
+true1 = {};
+for i = 1:size(ocrResult,1)
+	ocrSelectResult{i} = ocrResult(i).Text;
+	select_ocr_text = ((ocrResult(i).CharacterConfidences) < 0.74);
+	ocrSelectResult{i}(select_ocr_text) = [];
+	c = isletter(ocrSelectResult{i});
+	text_ratio = sum(c)/length(c);
+	trueOut{end+1} = ocrResult(i).Text; 
+	true1{end+1} = ocrSelectResult;
+end
+
+for i =1:size(ocrSelectResult,2)
+	m = ocrSelectResult(1,i);
+	a = m{:};
+	if size(a,2) > 2 
+		if ~isspace(a(1,1)) fprintf('%c',a(1,1)); end
+		for j = 2:size(a,2)
+			if ~isspace(a(1,j)) 
+				fprintf('%c',a(1,j));
+			elseif ~isspace(a(1,j-1))
+				fprintf('%c',a(1,j));
+			end
+		end
+	end
+end
